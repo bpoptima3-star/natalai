@@ -1,0 +1,9 @@
+{
+  "name": "natalai",
+  "version": "1.0.0",
+  "description": "AI-powered Vedic natal chart readings",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  }
+}
