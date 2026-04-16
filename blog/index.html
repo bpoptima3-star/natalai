@@ -17,10 +17,18 @@
     nav{background:var(--deep);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
     .logo{color:var(--gold-l);font-size:20px;text-decoration:none;font-weight:600}
     .nav-cta{color:var(--muted);font-size:13px;text-decoration:none}
+    .nav-cta:hover{color:var(--text)}
     .hero{text-align:center;padding:72px 24px 48px;max-width:640px;margin:0 auto}
     .hero-label{color:var(--purple-l);font-size:11px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px}
     h1{font-size:clamp(28px,5vw,42px);color:var(--white);font-family:Georgia,serif;line-height:1.2;margin-bottom:16px}
     .hero p{color:var(--muted);font-size:16px;line-height:1.6}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;max-width:1080px;margin:0 auto;padding:0 24px 80px}
+    .card{display:block;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:24px;text-decoration:none;transition:border-color .2s,background .2s}
+    .card:hover{border-color:rgba(124,58,237,.4);background:rgba(255,255,255,.06)}
+    .tag{display:inline-block;font-size:11px;color:var(--purple-l);background:rgba(124,58,237,.15);padding:3px 10px;border-radius:20px;margin-bottom:14px}
+    .card h2{font-size:17px;color:var(--white);line-height:1.4;margin-bottom:10px;font-family:Georgia,serif}
+    .card p{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:16px}
+    .more{font-size:13px;color:var(--purple-l)}
     .empty{text-align:center;color:var(--muted);padding:80px 24px}
   </style>
 </head>
@@ -34,6 +42,14 @@
     <h1>Ancient Wisdom,<br>Modern Words</h1>
     <p>Deep guides on Vedic astrology — moon signs, dashas, planetary transits, compatibility and more.</p>
   </div>
-  <p class="empty">Articles loading... check back soon.</p>
+  <div class="grid">
+    
+    <a href="/blog/moon-in-capricorn-vedic-astrology.html" class="card">
+      <span class="tag">✦ Year Reading</span>
+      <h2>Moon in Capricorn Vedic Astrology: Traits & Meaning</h2>
+      <p>Moon in Capricorn creates disciplined, ambitious souls who build emotional security through achievement. This placement shapes how you process feelings through Saturn's structured lens.</p>
+      <span class="more">Read more →</span>
+    </a>
+  </div>
 </body>
 </html>
