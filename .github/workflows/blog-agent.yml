@@ -1,0 +1,34 @@
+name: Blog Agent
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'   # runs 3x per day: midnight, 8am, 4pm UTC
+  workflow_dispatch:          # lets you trigger manually from GitHub Actions tab
+
+jobs:
+  write-article:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write         # needed to push new article files
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run blog agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/blog-agent.js
+
+      - name: Commit and push new article
+        run: |
+          git config user.name "NatalAI Blog Agent"
+          git config user.email "agent@natalai.live"
+          git add blog/
+          git diff --staged --quiet || git commit -m "Blog: new article $(date +'%Y-%m-%d %H:%M')"
+          git push
