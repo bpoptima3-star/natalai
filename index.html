@@ -3087,7 +3087,7 @@ function showEmailCapture(){
   if(t&&!localStorage.getItem('emailCaptured'))t.style.display='block';
 }
 // ── GOOGLE SHEETS LEAD CAPTURE ─────────────────────────────────────────────
-const SHEETS_WEBHOOK = 'PASTE_YOUR_APPS_SCRIPT_URL_HERE';
+const SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbzXRvzUJc9BxYv_-cmH-cM2yPZGxVNXatbK6jMrRLTUOREGFg6c5KnZkCyy5L6W4nVYNg/exec';
 function captureLeadToSheets(data) {
   if (!SHEETS_WEBHOOK || SHEETS_WEBHOOK.includes('PASTE')) return;
   fetch(SHEETS_WEBHOOK, {
