@@ -2,6 +2,8 @@
   "version": 2,
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/blog", "dest": "/blog/index.html" },
+    { "src": "/blog/", "dest": "/blog/index.html" },
     { "src": "/blog/(.*)", "dest": "/blog/$1" },
     { "src": "/privacy-policy.html", "dest": "/privacy-policy.html" },
     { "src": "/privacy-policy", "dest": "/privacy-policy.html" },
