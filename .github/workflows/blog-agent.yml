@@ -1,0 +1,37 @@
+name: Blog Agent
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'
+  workflow_dispatch:
+
+jobs:
+  write-article:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run blog agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/blog-agent.js
+
+      - name: Generate sitemap
+        run: node scripts/generate-sitemap.js
+
+      - name: Commit and push
+        run: |
+          git config user.name "NatalAI Blog Agent"
+          git config user.email "agent@natalai.live"
+          git add blog/ sitemap.xml
+          git diff --staged --quiet || git commit -m "Blog: new article + sitemap $(date +'%Y-%m-%d %H:%M')"
+          git push
