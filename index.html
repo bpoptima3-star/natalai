@@ -2521,7 +2521,7 @@ Natal planets: ${(n.planets||[]).map(p=>`${p.name} ${p.rashi} H${p.house}${p.sta
   const mun = v.muntha || {};
   const maha = v.mahadasha || {};
   const antar = v.antardasha || {};
-  const pancha = (v.Annual Ruling Planets||[]).map(p=>`${p.role}: ${p.lordName}`).join(', ');
+  const pancha = (v.panchadhikari||[]).map(p=>`${p.role}: ${p.lordName}`).join(', ');
   const sahamCtx = (v.saham||[]).map(p=>`${p.name}:${p.sign}(${p.lord})`).join(', ');
   const yoginiCtx = (v.muddaYogini||[]).map(p=>`${p.lordName}/${p.yoginiName} ${p.startDate}→${p.endDate}`).join(' | ');
   const mudda = (v.muddaDasha||[]).map(p=>`${p.lordName} ${p.startDate}→${p.endDate}`).join(' | ');
@@ -2706,7 +2706,7 @@ function renderVarshpalReport(name, dob, tob, pob, d, vd) {
   const natalChartSVG = nPlanets.length ? `<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:340px;display:block;margin:0 auto">${kundaliSVGContent(natalLagna, nPlanets)}</svg>` : '';
 
   // ── Panchadhikari table ──
-  const panchaHTML = (v.Annual Ruling Planets||[]).map(p=>`
+  const panchaHTML = (v.panchadhikari||[]).map(p=>`
     <tr>
       <td style="padding:6px 10px;font-size:11px;color:var(--muted)">${p.role}</td>
       <td style="padding:6px 10px;font-size:11px;font-weight:600;color:#bf9a30">${p.lordName}</td>
@@ -2826,7 +2826,7 @@ function renderVarshpalReport(name, dob, tob, pob, d, vd) {
       <div class="rep-hl"><p>${d.year_theme.year_overview||''}</p></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
         ${d.year_theme.muntha_meaning?`<div style="background:rgba(160,114,10,.05);border:0.5px solid rgba(160,114,10,.18);border-radius:7px;padding:12px"><div style="font-size:9px;font-weight:600;color:#bf9a30;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">MONTHLY FOCUS · House ${v.muntha?.house||''}</div><div style="font-size:12px;color:var(--muted)">${d.year_theme.muntha_meaning}</div></div>`:''}
-        ${d.year_theme.varshesh_meaning?`<div style="background:rgba(160,114,10,.05);border:0.5px solid rgba(160,114,10,.18);border-radius:7px;padding:12px"><div style="font-size:9px;font-weight:600;color:#bf9a30;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">YEAR RULER · ${v.Annual Ruling Planets?.[0]?.lordName||''}</div><div style="font-size:12px;color:var(--muted)">${d.year_theme.varshesh_meaning}</div></div>`:''}
+        ${d.year_theme.varshesh_meaning?`<div style="background:rgba(160,114,10,.05);border:0.5px solid rgba(160,114,10,.18);border-radius:7px;padding:12px"><div style="font-size:9px;font-weight:600;color:#bf9a30;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">YEAR RULER · ${v.panchadhikari?.[0]?.lordName||''}</div><div style="font-size:12px;color:var(--muted)">${d.year_theme.varshesh_meaning}</div></div>`:''}
       </div>
     </div>
     <div class="rep-divider">· · ✦ · ·</div>`:''}
