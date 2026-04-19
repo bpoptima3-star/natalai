@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/((?!api).*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/chart.js":       { "maxDuration": 30 },
+    "api/varshpal.js":    { "maxDuration": 20 },
+    "api/send-report.js": { "maxDuration": 20 },
+    "api/create-order.js":{ "maxDuration": 15 }
+  }
+}
