@@ -9,9 +9,6 @@
     "api/chart.js": {
       "maxDuration": 30
     },
-    "api/varshpal.js": {
-      "maxDuration": 20
-    },
     "api/send-report.js": {
       "maxDuration": 20
     }
