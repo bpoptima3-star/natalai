@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/((?!api|privacy-policy|blog).*)",
-      "destination": "/index.html"
-    }
-  ]
-}
