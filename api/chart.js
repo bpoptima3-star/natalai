@@ -2,13 +2,13 @@
 // Mode 1: Legacy direct prompt (backward compat)
 // Mode 2: Free chart — real ephemeris + inline yogas
 // Mode 3: Full paid report — all computation inline, 8 parallel Haiku section calls
-// Vedic Rules Engine: requires ./vedic-rules-engine-v2 (same api/ folder)
+// Vedic Rules Engine: requires ./vedic-rules-engine-v3 (same api/ folder)
 
 'use strict';
 
 // ─── VEDIC RULES ENGINE — deterministic classical rules from BPHS, Phaladeepika, Saravali ──
 let VedicRulesEngine;
-try { ({ VedicRulesEngine } = require('./vedic-rules-engine-v2')); } catch(e) { VedicRulesEngine = null; }
+try { ({ VedicRulesEngine } = require('./vedic-rules-engine-v3')); } catch(e) { VedicRulesEngine = null; }
 
 /**
  * Converts chart.js internal data structures into the format expected by VedicRulesEngine.
