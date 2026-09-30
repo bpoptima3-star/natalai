@@ -2,36 +2,40 @@ name: Blog Agent
 
 on:
   schedule:
-    - cron: '0 */8 * * *'
-  workflow_dispatch:
+    - cron: '0 */8 * * *'      # every 8 hours
+  workflow_dispatch:            # manual "Run workflow" button
+
+permissions:
+  contents: write               # lets the action push commits
+
+concurrency:
+  group: blog-agent
+  cancel-in-progress: false     # don't let two runs collide
 
 jobs:
-  write-article:
+  run:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
       - name: Run blog agent
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node scripts/blog-agent.js
 
-      - name: Generate sitemap
-        run: node scripts/generate-sitemap.js
-
-      - name: Commit and push
+      - name: Commit & push
         run: |
           git config user.name "NatalAI Blog Agent"
-          git config user.email "agent@natalai.live"
-          git add blog/ sitemap.xml
-          git diff --staged --quiet || git commit -m "Blog: new article + sitemap $(date +'%Y-%m-%d %H:%M')"
-          git push
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Blog: new article + sitemap $(date '+%Y-%m-%d %H:%M')" || { echo "nothing to commit"; exit 0; }
+          git pull --rebase origin main
+          git push origin main
