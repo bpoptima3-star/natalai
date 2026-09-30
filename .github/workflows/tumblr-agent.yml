@@ -34,7 +34,7 @@ jobs:
           TUMBLR_OAUTH_TOKEN:        ${{ secrets.TUMBLR_OAUTH_TOKEN }}
           TUMBLR_OAUTH_TOKEN_SECRET: ${{ secrets.TUMBLR_OAUTH_TOKEN_SECRET }}
           TUMBLR_BLOG_NAME:          ${{ secrets.TUMBLR_BLOG_NAME }}
-        run: node scripts/tumblr.js
+          run: node scripts/tumblr-crosspost.js
 
       - name: Commit & push posted-status
         run: |
