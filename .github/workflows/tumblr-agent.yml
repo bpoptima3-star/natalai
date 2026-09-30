@@ -2,37 +2,45 @@ name: Tumblr Cross-poster
 
 on:
   schedule:
-    - cron: '30 * * * *'   # 30 mins past every hour (offset from blog agent)
+    - cron: '30 */8 * * *'      # every 8 hours, offset from blog agent
   workflow_dispatch:
 
-jobs:
-  crosspost:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+permissions:
+  contents: write
 
+concurrency:
+  group: tumblr-poster
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Run Tumblr cross-poster
+      - name: Run Tumblr poster
         env:
-          TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}
-          TUMBLR_CONSUMER_SECRET: ${{ secrets.TUMBLR_CONSUMER_SECRET }}
-          TUMBLR_OAUTH_TOKEN: ${{ secrets.TUMBLR_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY:         ${{ secrets.ANTHROPIC_API_KEY }}
+          TUMBLR_CONSUMER_KEY:       ${{ secrets.TUMBLR_CONSUMER_KEY }}
+          TUMBLR_CONSUMER_SECRET:    ${{ secrets.TUMBLR_CONSUMER_SECRET }}
+          TUMBLR_OAUTH_TOKEN:        ${{ secrets.TUMBLR_OAUTH_TOKEN }}
           TUMBLR_OAUTH_TOKEN_SECRET: ${{ secrets.TUMBLR_OAUTH_TOKEN_SECRET }}
-          TUMBLR_BLOG_NAME: ${{ secrets.TUMBLR_BLOG_NAME }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: node scripts/tumblr-agent.js
-      - name: Commit updated articles.json
+          TUMBLR_BLOG_NAME:          ${{ secrets.TUMBLR_BLOG_NAME }}
+        run: node scripts/tumblr.js
+
+      - name: Commit & push posted-status
         run: |
-          git config user.name "NatalAI Tumblr Agent"
-          git config user.email "agent@natalai.live"
+          git config user.name "NatalAI Tumblr Bot"
+          git config user.email "actions@github.com"
           git add blog/articles.json
-          git diff --staged --quiet || git commit -m "Tumblr: posted $(date +'%Y-%m-%d %H:%M')"
-          git push
+          git commit -m "Tumblr: mark posted $(date '+%F %H:%M')" || { echo "nothing to commit"; exit 0; }
+          git pull --rebase origin main
+          git push origin main
