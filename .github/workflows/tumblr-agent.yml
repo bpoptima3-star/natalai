@@ -2,7 +2,7 @@ name: Tumblr Cross-poster
 
 on:
   schedule:
-    - cron: '30 */8 * * *'      # every 8 hours, offset from blog agent
+    - cron: '30 */8 * * *'
   workflow_dispatch:
 
 permissions:
@@ -34,13 +34,10 @@ jobs:
           TUMBLR_OAUTH_TOKEN:        ${{ secrets.TUMBLR_OAUTH_TOKEN }}
           TUMBLR_OAUTH_TOKEN_SECRET: ${{ secrets.TUMBLR_OAUTH_TOKEN_SECRET }}
           TUMBLR_BLOG_NAME:          ${{ secrets.TUMBLR_BLOG_NAME }}
-          run: node scripts/tumblr-crosspost.js
+        run: node scripts/tumblr-crosspost.js
 
       - name: Commit & push posted-status
         run: |
           git config user.name "NatalAI Tumblr Bot"
           git config user.email "actions@github.com"
           git add blog/articles.json
-          git commit -m "Tumblr: mark posted $(date '+%F %H:%M')" || { echo "nothing to commit"; exit 0; }
-          git pull --rebase origin main
-          git push origin main
