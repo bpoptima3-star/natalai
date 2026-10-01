@@ -1,6 +1,7 @@
 // One-time: delete duplicate NatalAI bot posts from Tumblr.
 // Safe: only touches posts containing 'natalai.live'. Keeps newest post per title.
-// Set DRY_RUN=false (env) to actually delete. Default is dry run (lists only).
+// DRY_RUN defaults TRUE. Set env DRY_RUN=false to actually delete.
+// Uses id_string everywhere — Tumblr IDs exceed JS safe-integer range.
 const crypto = require('crypto')
 
 const CONSUMER_KEY    = process.env.TUMBLR_CONSUMER_KEY
@@ -39,9 +40,9 @@ async function getPosts(offset){
   return data.response.posts || []
 }
 
-async function deletePost(id){
+async function deletePost(idString){
   const url = `https://api.tumblr.com/v2/blog/${TUMBLR_BLOG}/post/delete`
-  const params = { id: String(id) }
+  const params = { id: String(idString) }
   const body = Object.keys(params).map(k=>`${enc(k)}=${enc(params[k])}`).join('&')
   const res = await fetch(url, {
     method: 'POST',
@@ -49,12 +50,15 @@ async function deletePost(id){
     body,
   })
   const data = await res.json()
-  if (!res.ok) throw new Error(`Delete ${id} error: ${JSON.stringify(data)}`)
+  if (!res.ok) throw new Error(`${JSON.stringify(data)}`)
   return true
 }
 
+const pidOf = p => p.id_string || String(p.id)   // always use the string ID
+
 async function main(){
   console.log(`🧹 Duplicate cleanup — DRY_RUN=${DRY_RUN}`)
+
   // 1. Fetch all posts
   let all = [], offset = 0
   while (true) {
@@ -90,19 +94,25 @@ async function main(){
 
   if (DRY_RUN) {
     console.log('\n--- DRY RUN: nothing deleted. Sample of what would go: ---')
-    toDelete.slice(0,15).forEach(p => console.log(`   would delete #${p.id}: "${p.title||p.summary||''}"`))
+    toDelete.slice(0,15).forEach(p => console.log(`   would delete #${pidOf(p)}: "${p.title||p.summary||''}"`))
     console.log(`\nRe-run with DRY_RUN=false to actually delete ${toDelete.length} posts.`)
     return
   }
 
   // 4. Delete
-  let done = 0
+  let done = 0, failed = 0
   for (const p of toDelete) {
-        try { await deletePost(p.id_string || String(p.id)); done++; if (done%10===0) console.log(`  deleted ${done}/${toDelete.length}`) }
-    catch(e){ console.error(`  failed #${p.id}: ${e.message}`) }
-    await new Promise(r=>setTimeout(r, 600)) // rate-limit friendly
+    const pid = pidOf(p)
+    try {
+      await deletePost(pid); done++
+      if (done % 10 === 0) console.log(`  deleted ${done}/${toDelete.length}`)
+    } catch(e) {
+      failed++
+      if (failed <= 10) console.error(`  failed #${pid}: ${e.message}`)
+    }
+    await new Promise(r=>setTimeout(r, 600))
   }
-  console.log(`\n✅ Deleted ${done} duplicate posts.`)
+  console.log(`\n✅ Deleted ${done} posts. ${failed} failed (re-run to retry those).`)
 }
 
 main().catch(e => { console.error('❌', e); process.exit(1) })
