@@ -98,7 +98,7 @@ async function main(){
   // 4. Delete
   let done = 0
   for (const p of toDelete) {
-    try { await deletePost(p.id); done++; if (done%10===0) console.log(`  deleted ${done}/${toDelete.length}`) }
+        try { await deletePost(p.id_string || String(p.id)); done++; if (done%10===0) console.log(`  deleted ${done}/${toDelete.length}`) }
     catch(e){ console.error(`  failed #${p.id}: ${e.message}`) }
     await new Promise(r=>setTimeout(r, 600)) // rate-limit friendly
   }
