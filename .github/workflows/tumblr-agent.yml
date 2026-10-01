@@ -2,7 +2,7 @@ name: Tumblr Cross-poster
 
 on:
   schedule:
-    - cron: '30 */8 * * *'
+    - cron: '0 14 * * *'      # once a day at 14:00 UTC
   workflow_dispatch:
 
 permissions:
