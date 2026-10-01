@@ -1,7 +1,5 @@
 // One-time: delete duplicate NatalAI bot posts from Tumblr.
-// Safe: only touches posts containing 'natalai.live'. Keeps newest post per title.
-// DRY_RUN defaults TRUE. Set env DRY_RUN=false to actually delete.
-// Uses id_string everywhere — Tumblr IDs exceed JS safe-integer range.
+// Handles 429 rate limits with retry+backoff. DRY_RUN defaults TRUE.
 const crypto = require('crypto')
 
 const CONSUMER_KEY    = process.env.TUMBLR_CONSUMER_KEY
@@ -9,10 +7,12 @@ const CONSUMER_SECRET = process.env.TUMBLR_CONSUMER_SECRET
 const OAUTH_TOKEN     = process.env.TUMBLR_OAUTH_TOKEN
 const OAUTH_SECRET    = process.env.TUMBLR_OAUTH_TOKEN_SECRET
 const TUMBLR_BLOG     = process.env.TUMBLR_BLOG_NAME
-const DRY_RUN         = process.env.DRY_RUN !== 'false'   // default TRUE (safe)
-const SIGNATURE       = 'natalai.live'                     // only delete posts containing this
+const DRY_RUN         = process.env.DRY_RUN !== 'false'
+const SIGNATURE       = 'natalai.live'
+const MAX_DELETES     = parseInt(process.env.MAX_DELETES || '200', 10)  // cap per run to stay under quota
 
 function enc(s){return encodeURIComponent(String(s)).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}
+const sleep = ms => new Promise(r=>setTimeout(r, ms))
 
 function authHeader(method, url, params){
   const oauth = {
@@ -30,89 +30,88 @@ function authHeader(method, url, params){
   return 'OAuth ' + Object.keys(oauth).map(k=>`${enc(k)}="${enc(oauth[k])}"`).join(', ')
 }
 
+// fetch with 429 retry/backoff
+async function apiCall(method, url, params, isGet){
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    let res, data
+    try {
+      if (isGet) {
+        const qs = Object.keys(params).map(k=>`${enc(k)}=${enc(params[k])}`).join('&')
+        res = await fetch(`${url}?${qs}`, { headers: { Authorization: authHeader('GET', url, params) } })
+      } else {
+        const body = Object.keys(params).map(k=>`${enc(k)}=${enc(params[k])}`).join('&')
+        res = await fetch(url, { method:'POST', headers:{ Authorization: authHeader('POST', url, params), 'Content-Type':'application/x-www-form-urlencoded' }, body })
+      }
+      data = await res.json()
+    } catch(e) { data = { meta:{status:0}, _neterr:e.message } }
+
+    const status = data?.meta?.status ?? res?.status ?? 0
+    if (status === 429) {
+      const wait = Math.min(60000, 5000 * attempt)  // 5s,10s,15s... cap 60s
+      console.log(`  ⏳ rate limited — waiting ${wait/1000}s (attempt ${attempt})`)
+      await sleep(wait); continue
+    }
+    return { ok: res?.ok && status < 400, status, data }
+  }
+  return { ok:false, status:429, data:{ meta:{ msg:'giving up after retries' } } }
+}
+
 async function getPosts(offset){
   const url = `https://api.tumblr.com/v2/blog/${TUMBLR_BLOG}/posts`
-  const params = { limit: '50', offset: String(offset), api_key: CONSUMER_KEY }
-  const qs = Object.keys(params).map(k=>`${enc(k)}=${enc(params[k])}`).join('&')
-  const res = await fetch(`${url}?${qs}`, { headers: { Authorization: authHeader('GET', url, params) } })
-  const data = await res.json()
-  if (!res.ok) throw new Error(`Fetch error: ${JSON.stringify(data)}`)
-  return data.response.posts || []
+  const r = await apiCall('GET', url, { limit:'50', offset:String(offset), api_key:CONSUMER_KEY }, true)
+  if (!r.ok) throw new Error(`Fetch error: ${JSON.stringify(r.data)}`)
+  return r.data.response.posts || []
 }
 
 async function deletePost(idString){
   const url = `https://api.tumblr.com/v2/blog/${TUMBLR_BLOG}/post/delete`
-  const params = { id: String(idString) }
-  const body = Object.keys(params).map(k=>`${enc(k)}=${enc(params[k])}`).join('&')
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: authHeader('POST', url, params), 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(`${JSON.stringify(data)}`)
+  const r = await apiCall('POST', url, { id:String(idString) }, false)
+  if (!r.ok) throw new Error(JSON.stringify(r.data))
   return true
 }
 
-const pidOf = p => p.id_string || String(p.id)   // always use the string ID
+const pidOf = p => p.id_string || String(p.id)
 
 async function main(){
-  console.log(`🧹 Duplicate cleanup — DRY_RUN=${DRY_RUN}`)
+  console.log(`🧹 Cleanup — DRY_RUN=${DRY_RUN}, max ${MAX_DELETES} deletes this run`)
 
-  // 1. Fetch all posts
   let all = [], offset = 0
   while (true) {
     const batch = await getPosts(offset)
     if (!batch.length) break
-    all = all.concat(batch)
-    offset += batch.length
+    all = all.concat(batch); offset += batch.length
     console.log(`  fetched ${all.length}...`)
+    await sleep(400)                      // gentle on fetch too
     if (batch.length < 50) break
   }
-  console.log(`📚 Total posts on blog: ${all.length}`)
+  console.log(`📚 Total: ${all.length}`)
 
-  // 2. Keep only bot posts (contain signature)
-  const botPosts = all.filter(p => {
-    const text = `${p.title||''} ${p.body||''} ${p.summary||''} ${(p.trail||[]).map(t=>t.content_raw||'').join(' ')}`
-    return text.includes(SIGNATURE)
-  })
-  console.log(`🤖 Bot posts (contain "${SIGNATURE}"): ${botPosts.length}`)
+  const botPosts = all.filter(p => `${p.title||''} ${p.body||''} ${p.summary||''} ${(p.trail||[]).map(t=>t.content_raw||'').join(' ')}`.includes(SIGNATURE))
+  console.log(`🤖 Bot posts: ${botPosts.length}`)
 
-  // 3. Group by title, keep newest, mark rest for deletion
   const byTitle = {}
-  for (const p of botPosts) {
-    const t = (p.title || p.summary || '').trim().toLowerCase()
-    ;(byTitle[t] = byTitle[t] || []).push(p)
-  }
+  for (const p of botPosts){ const t=(p.title||p.summary||'').trim().toLowerCase(); (byTitle[t]=byTitle[t]||[]).push(p) }
   const toDelete = []
-  for (const t in byTitle) {
-    const group = byTitle[t].sort((a,b)=> (b.timestamp||0)-(a.timestamp||0)) // newest first
-    toDelete.push(...group.slice(1)) // keep [0], delete rest
-  }
-  console.log(`🗑️  Duplicates to delete (keeping newest of each title): ${toDelete.length}`)
-  console.log(`✅ Posts that will REMAIN: ${botPosts.length - toDelete.length} bot + ${all.length - botPosts.length} non-bot`)
+  for (const t in byTitle){ const g=byTitle[t].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)); toDelete.push(...g.slice(1)) }
+  console.log(`🗑️  Duplicates to delete: ${toDelete.length}`)
+  console.log(`✅ Will remain: ${botPosts.length - toDelete.length} bot + ${all.length - botPosts.length} non-bot`)
 
-  if (DRY_RUN) {
-    console.log('\n--- DRY RUN: nothing deleted. Sample of what would go: ---')
-    toDelete.slice(0,15).forEach(p => console.log(`   would delete #${pidOf(p)}: "${p.title||p.summary||''}"`))
-    console.log(`\nRe-run with DRY_RUN=false to actually delete ${toDelete.length} posts.`)
+  if (DRY_RUN){
+    console.log('\n--- DRY RUN ---')
+    toDelete.slice(0,10).forEach(p=>console.log(`   would delete #${pidOf(p)}: "${p.title||''}"`))
+    console.log(`\nRe-run DRY_RUN=false to delete.`)
     return
   }
 
-  // 4. Delete
-  let done = 0, failed = 0
-  for (const p of toDelete) {
-    const pid = pidOf(p)
-    try {
-      await deletePost(pid); done++
-      if (done % 10 === 0) console.log(`  deleted ${done}/${toDelete.length}`)
-    } catch(e) {
-      failed++
-      if (failed <= 10) console.error(`  failed #${pid}: ${e.message}`)
-    }
-    await new Promise(r=>setTimeout(r, 600))
+  const batchToDelete = toDelete.slice(0, MAX_DELETES)
+  console.log(`\nDeleting up to ${batchToDelete.length} this run (re-run for the rest)...`)
+  let done=0, failed=0
+  for (const p of batchToDelete){
+    try { await deletePost(pidOf(p)); done++; if(done%10===0) console.log(`  deleted ${done}/${batchToDelete.length}`) }
+    catch(e){ failed++; if(failed<=5) console.error(`  failed #${pidOf(p)}: ${e.message}`) }
+    await sleep(1200)                     // slower = fewer 429s
   }
-  console.log(`\n✅ Deleted ${done} posts. ${failed} failed (re-run to retry those).`)
+  console.log(`\n✅ Deleted ${done}. Failed ${failed}. Remaining duplicates: ~${toDelete.length - done}. Re-run to continue.`)
 }
 
-main().catch(e => { console.error('❌', e); process.exit(1) })
+main().catch(e=>{ console.error('❌', e); process.exit(1) })
