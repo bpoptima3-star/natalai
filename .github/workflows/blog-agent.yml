@@ -2,15 +2,15 @@ name: Blog Agent
 
 on:
   schedule:
-    - cron: '0 14 * * *'      # once a day at 14:00 UTC
-  workflow_dispatch:            # manual "Run workflow" button
+    - cron: '0 6 * * *'      # once a day, 06:00 UTC (12h before Tumblr)
+  workflow_dispatch:
 
 permissions:
-  contents: write               # lets the action push commits
+  contents: write
 
 concurrency:
   group: blog-agent
-  cancel-in-progress: false     # don't let two runs collide
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -36,6 +36,11 @@ jobs:
           git config user.name "NatalAI Blog Agent"
           git config user.email "actions@github.com"
           git add -A
-          git commit -m "Blog: new article + sitemap $(date '+%Y-%m-%d %H:%M')" || { echo "nothing to commit"; exit 0; }
-          git pull --rebase origin main
-          git push origin main
+          git commit -m "Blog: new article $(date '+%F %H:%M')" || { echo "nothing to commit"; exit 0; }
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase -X ours origin/main && git push origin main && { echo "pushed"; exit 0; }
+            git rebase --abort 2>/dev/null || true
+            echo "retry $i..."; sleep 5
+          done
+          echo "push failed after retries"; exit 1
