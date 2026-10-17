@@ -495,9 +495,8 @@ async function main() {
   if (topic) {
     console.log(`📖 Series: ${topic.series} → "${topic.keyword}"`)
   } else {
-    console.log('📖 All series done — using AI keyword research')
-    const keywords = articles.map(a => a.keyword)
-    topic = await pickKeywordAI(keywords)
+   console.log('✓ All series complete — no new article to publish. Exiting.')
+    return
   }
 
   console.log(`✓ Keyword: "${topic.keyword}"`)
