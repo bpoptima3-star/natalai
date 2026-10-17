@@ -507,6 +507,20 @@ async function main() {
   const article = await writeArticle(topic)
   console.log(`✓ Title: "${article.title}"`)
   console.log(`✓ Slug: ${article.slug}`)
+    console.log(`✓ Slug: ${article.slug}`)
+
+  // Dedup guard — never add an article whose slug/title already exists
+  const exists = articles.some(a =>
+    a.slug === article.slug ||
+    (a.title || '').trim().toLowerCase() === (article.title || '').trim().toLowerCase()
+  )
+  if (exists) {
+    console.log(`⚠️  "${article.title}" already published — skipping. No duplicate, no Tumblr repost.`)
+    return
+  }
+
+  // Save article HTML
+  const date = new Date().toISOString()
 
   // Save article HTML
   const date = new Date().toISOString()
