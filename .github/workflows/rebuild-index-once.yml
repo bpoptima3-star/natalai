@@ -1,0 +1,21 @@
+name: Rebuild Blog Index (one-time)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node scripts/rebuild-index.js
+      - run: |
+          git config user.name "NatalAI Bot"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Rebuild blog index + remove orphan HTML" || { echo nothing; exit 0; }
+          git pull --rebase -X ours origin main
+          git push origin main
