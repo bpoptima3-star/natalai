@@ -3112,6 +3112,28 @@ function captureEmail() {
   showToast('✓ Subscribed successfully!','success');
 }
 
+// ─── PARTNER PROGRAM: ?ref=CODE → remember 30 days (last click wins) ───────
+// Works alongside any other params (?start, ?q=love, ?focus=…). The code rides
+// with the PayPal order; the server credits the partner on capture.
+(function(){
+  try{
+    var r=(new URLSearchParams(window.location.search).get('ref')||'').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,24);
+    if(r.length>=2){
+      localStorage.setItem('natal_ref', JSON.stringify({code:r, ts:Date.now()}));
+      if(!sessionStorage.getItem('natal_ref_clk_'+r)){
+        sessionStorage.setItem('natal_ref_clk_'+r,'1');
+        fetch('/api/affiliate',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'click',code:r}),keepalive:true}).catch(function(){});
+      }
+    }
+  }catch(_){}
+})();
+function getAffRef(){
+  try{ var o=JSON.parse(localStorage.getItem('natal_ref')||'null');
+       if(o && o.code && (Date.now()-o.ts) < 30*864e5) return o.code; }catch(_){}
+  return null;
+}
+
 // ─── URL PARAM: ?r=natal|timing|cosmic → auto-open report modal ────────────
 (function(){
   var params = new URLSearchParams(window.location.search);
@@ -3319,6 +3341,7 @@ function initPayPalButton() {
           description: desc,
           reportType: modalReportType,
           ..._orderParams,
+          ...(getAffRef() && { ref: getAffRef() }),
           ...(_devToken && { devToken: _devToken })
         })
       });
@@ -3337,6 +3360,7 @@ function initPayPalButton() {
         body: JSON.stringify({
           capture: true,
           orderID: data.orderID,
+          ...(getAffRef() && { ref: getAffRef() }),
           ...(_devToken && { devToken: _devToken })
         })
       });

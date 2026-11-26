@@ -22,6 +22,10 @@ function getRedis() {
   }
 }
 
+// Partner program — credits a referring partner when a payment is captured.
+const AFF = require('./_affiliate-core');
+const VALID_PRICES = { natal: '4.99', timing: '5.99', cosmic: '6.99', compat: '6.99' };
+
 async function getAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const secret   = process.env.PAYPAL_SECRET;
@@ -95,11 +99,33 @@ module.exports = async function handler(req, res) {
       );
       const data = await r.json();
       if (!r.ok) return res.status(500).json({ error: 'Capture failed', details: data });
+
+      // Partner commission (idempotent; the webhook is the backup path). Never blocks the buyer.
+      if (data.status === 'COMPLETED') {
+        try {
+          const stash = await AFF.refForOrder(body.orderID);
+          const ref = (stash && stash.ref) || body.ref;
+          if (ref) {
+            const cap = data.purchase_units && data.purchase_units[0] && data.purchase_units[0].payments
+              && data.purchase_units[0].payments.captures && data.purchase_units[0].payments.captures[0];
+            const amount = (cap && cap.amount && cap.amount.value) || VALID_PRICES[(stash && stash.reportType) || 'natal'];
+            const out = await AFF.creditSale({
+              orderId: body.orderID, ref, amount,
+              reportType: stash && stash.reportType,
+              payerEmail: data.payer && data.payer.email_address,
+              source: 'capture'
+            });
+            console.log('[AFFILIATE] capture credit', body.orderID, out);
+          }
+        } catch (e) {
+          console.warn('[AFFILIATE] capture credit failed (non-fatal):', e.message);
+        }
+      }
+
       return res.status(200).json({ status: data.status, id: data.id });
     }
 
     // ── CREATE new order ───────────────────────────────────────────────────────
-    const VALID_PRICES = { natal: '4.99', timing: '5.99', cosmic: '6.99', compat: '6.99' };
     const safeAmount = VALID_PRICES[body.reportType];
     if (!safeAmount) return res.status(400).json({ error: 'Invalid report type' });
 
@@ -146,6 +172,7 @@ module.exports = async function handler(req, res) {
             gender2:body.gender2|| '',
             eventType: body.eventType || '',
             email:  body.email  || '',     // optional on-site email if provided
+            ref:    AFF.normCode(body.ref) || '',  // partner code (?ref=) for commission
             createdAt: new Date().toISOString()
           }), { ex: 60 * 60 * 24 });
         } catch (e) {

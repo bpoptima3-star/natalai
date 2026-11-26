@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api|privacy-policy|blog).*)",
+      "source": "/((?!api|privacy-policy|blog|partners).*)",
       "destination": "/index.html"
     }
   ],

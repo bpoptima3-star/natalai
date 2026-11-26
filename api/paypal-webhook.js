@@ -10,6 +10,9 @@ const PAYPAL_BASE = process.env.PAYPAL_SANDBOX === 'true'
   ? 'https://api-m.sandbox.paypal.com'
   : 'https://api-m.paypal.com';
 
+// Partner program — backup commission credit if the capture path didn't run.
+const AFF = require('./_affiliate-core');
+
 // Site base for calling our own /api/chart + /api/send-report endpoints.
 const SITE_BASE = process.env.SITE_BASE_URL || 'https://natalai.live';
 
@@ -202,6 +205,20 @@ module.exports = async function handler(req, res) {
     const payer     = event?.resource?.payer?.email_address || 'unknown';
 
     console.log('[WEBHOOK] PAYMENT CONFIRMED:', { captureId, orderId, amount, payer, ts: new Date().toISOString() });
+
+    // Partner commission first (fast; idempotent with the capture-path credit).
+    try {
+      const stash = await AFF.refForOrder(orderId);
+      if (stash && stash.ref) {
+        const out = await AFF.creditSale({
+          orderId, ref: stash.ref, amount, reportType: stash.reportType,
+          payerEmail: payer, source: 'webhook'
+        });
+        console.log('[AFFILIATE] webhook credit', orderId, out);
+      }
+    } catch (e) {
+      console.warn('[AFFILIATE] webhook credit failed (non-fatal):', e.message);
+    }
 
     // Fulfill BEFORE responding so the work actually completes on serverless.
     // (maxDuration for this function is raised in vercel.json to allow report gen.)
